@@ -120,7 +120,7 @@ module.exports = ( type, url, apikey, jeedom42, logLevel ) => {
 	// console.log("importing jeedom with "+url+" and "+apikey);
 	thisUrl=url;
 	thisApikey=apikey;
-	thisType=type;(
+	thisType=type;
 	this42=jeedom42;
 	thisLogLevel=logLevel;
 	return sendToJeedom;
