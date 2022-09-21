@@ -1,0 +1,19 @@
+{
+  "name": "nodejsToJeedom",
+  "version": "v0.0.1",
+  "description": "NodeJS Jeedom communication",
+  "main": "jeedom.js",
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "request": ">=2.88.2"
+  },
+  "devDependencies": {
+    "@babel/core": ">=7.19.0",
+    "@babel/eslint-parser": "^7.18.9",
+    "eslint": "^8.23.1"
+  },
+  "author": "Nebz <nebz@nebz.be>",
+  "license": "GPL-2.0"
+}
