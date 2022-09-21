@@ -3,13 +3,16 @@
 const request = require('request');
 
 var busy = false;
+var busyRPC = false;
 var jeedomSendQueue = [];
 var jeedomSendRPCQueue = [];
 
 var thisUrl="";
 var thisApikey="";
 var thisType="";
+var this42="";
 var sessionId="";
+var thisLogLevel="";
 
 var processJeedomSendQueue = function()
 {
@@ -21,21 +24,18 @@ var processJeedomSendQueue = function()
 		return;
 	}
 	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
-	request.post({url:thisUrl, form:nextMessage.data}, function(err, _response, _body) {
+	request.post({url:thisUrl, form:nextMessage.data}, function(err, response, body) {
 		if(err)
 		{
-			// console.log(err);
+			if(thisLogLevel == 'debug') { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err,response,body); }
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
 				jeedomSendQueue.unshift(nextMessage);
 			}
 		}
-		else {
-			// console.log("Response from Jeedom: " + response.statusCode);
-			// console.log("Full Response: " + JSON.stringify(response));
-		}
-		setTimeout(_processJeedomSendQueue, 0.01*1000);
+		else if(thisLogLevel == 'debug' && response.body.trim() != '') { console.log("Réponse de Jeedom : ", response.body); }
+		setTimeout(processJeedomSendQueue, 0.01*1000);
 	});
 };
 
@@ -45,7 +45,7 @@ var processJeedomSendRPCQueue = function()
 	var nextMessage = jeedomSendRPCQueue.shift();
 
 	if (!nextMessage) {
-		busy = false;
+		busyRPC = false;
 		return;
 	}
 	
@@ -54,19 +54,19 @@ var processJeedomSendRPCQueue = function()
 	};
 	
 	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
-	request.post(thisUrl,{json:true,gzip:true, form:requestContent}, function(err, _response, json) {
+	request.post(thisUrl,{json:true,gzip:true, form:requestContent}, function(err, response, json) {
 		if (err)
 		{
-			// console.log(err);
+			if(thisLogLevel == 'debug') { console.error("Erreur communication avec Jeedom JSONRPC (retry "+nextMessage.tryCount+"/5): ",err,response,body); }
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
 				jeedomSendRPCQueue.unshift(nextMessage);
 			}
 		}
-		else if (_response.statusCode == 200) {
+		else if (response.statusCode == 200) {
 			if (!json) {
-				console.error("JSON reçu de Jeedom invalide, vérifiez le log API de Jeedom, reçu :"+JSON.stringify(_response));
+				console.error("JSON reçu de Jeedom invalide, vérifiez le log API de Jeedom, reçu :"+JSON.stringify(response));
 			}
 			if (!json.result && json.error) {
 				console.error(json.error);
@@ -76,7 +76,7 @@ var processJeedomSendRPCQueue = function()
 				sessionId = "";
 			}
 		} else {
-			console.error(err, _response.statusCode);
+			console.error(err, response.statusCode);
 		}
 		setTimeout(processJeedomSendRPCQueue, 0.01*1000);
 	});
@@ -84,29 +84,44 @@ var processJeedomSendRPCQueue = function()
 
 var sendToJeedom = function(data)
 {
+	const origDataSize=JSON.stringify(data).length;
 	// console.log("sending with "+thisUrl+" and "+thisApikey);
-	data.type = thisType;
-	data.apikey= thisApikey;
+	if(this42 == '0') {
+		data.type = thisType;
+		data.apikey= thisApikey;
+	} else {
+		data.type = 'event';
+		data.apikey= thisApikey;
+		data.plugin= thisType;
+	}
 	var message = {};
 	message.data = data;
 	message.tryCount = 0;
 	// console.log("Ajout du message " + JSON.stringify(message) + " dans la queue des messages a transmettre a Jeedom");
-	if(data.length > (100 * 1024)) { // > 100k
+	if(origDataSize > (100 * 1024)) { // > 100k
 		jeedomSendRPCQueue.push(message);  
 	} else {
 		jeedomSendQueue.push(message);
 	}
-	if (busy) {return;}
-	busy = true;
-	processJeedomSendQueue();
-	processJeedomSendRPCQueue();
+	
+	// unQueue
+	if (!busyRPC && jeedomSendRPCQueue.length) {
+		busyRPC = true;
+		process.nextTick(processJeedomSendRPCQueue);
+	}
+	if (!busy && jeedomSendQueue.length) {
+		busy = true;
+		process.nextTick(processJeedomSendQueue);
+	}
 };
 
 
-module.exports = ( type, url, apikey ) => { 
+module.exports = ( type, url, apikey, jeedom42, logLevel ) => { 
 	// console.log("importing jeedom with "+url+" and "+apikey);
 	thisUrl=url;
 	thisApikey=apikey;
-	thisType=type;
+	thisType=type;(
+	this42=jeedom42;
+	thisLogLevel=logLevel;
 	return sendToJeedom;
 };
