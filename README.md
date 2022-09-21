@@ -3,10 +3,15 @@
 const jsend = require('./utils/jeedom.js')('idPlugin',conf.urlJeedom,conf.apiKey,conf.jeedom42,conf.logLevel,conf.mode);
 
 conf.urlJeedom = "http://JEEDOM_IP/core/api/jeeApi.php"
+
 conf.apiKey = jeedom api key
+
 conf.jeedom42 = "0" or else
+
 conf.logLevel = "debug" or else
+
 confi.mode could be "size" (depending of message size (>100k = jsonrpc)) or "jsonrpc" or "event"
+
 
 then 
 
