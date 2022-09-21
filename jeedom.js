@@ -1,3 +1,4 @@
+/* jshint esversion: 8,node: true,-W041: false */
 "use strict";
 
 const request = require('request');
@@ -57,7 +58,7 @@ var processJeedomSendRPCQueue = function()
 	request.post(thisUrl,{json:true,gzip:true, form:requestContent}, function(err, response, json) {
 		if (err)
 		{
-			if(thisLogLevel == 'debug') { console.error("Erreur communication avec Jeedom JSONRPC (retry "+nextMessage.tryCount+"/5): ",err,response,body); }
+			if(thisLogLevel == 'debug') { console.error("Erreur communication avec Jeedom JSONRPC (retry "+nextMessage.tryCount+"/5): ",err,response,json); }
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
