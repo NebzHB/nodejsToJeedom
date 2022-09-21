@@ -99,30 +99,37 @@ var sendToJeedom = function(data)
 	message.data = data;
 	message.tryCount = 0;
 	// console.log("Ajout du message " + JSON.stringify(message) + " dans la queue des messages a transmettre a Jeedom");
-	if(origDataSize > (100 * 1024)) { // > 100k
+	if(thisMode == "size") {
+		if(origDataSize > (100 * 1024)) { // > 100k
+			jeedomSendRPCQueue.push(message);  
+		} else {
+			jeedomSendQueue.push(message);
+		}
+	} else if(thisMode == "jsonrpc") {
 		jeedomSendRPCQueue.push(message);  
-	} else {
-		jeedomSendQueue.push(message);
+	} else if(thisMode == "event") {
+		jeedomSendQueue.push(message);  
 	}
 	
 	// unQueue
-	if (!busyRPC && jeedomSendRPCQueue.length) {
+	if ((thisMode == "size" || thisMode == "jsonrpc") && !busyRPC && jeedomSendRPCQueue.length) {
 		busyRPC = true;
 		process.nextTick(processJeedomSendRPCQueue);
 	}
-	if (!busy && jeedomSendQueue.length) {
+	if ((thisMode == "size" || thisMode == "event") && !busy && jeedomSendQueue.length) {
 		busy = true;
 		process.nextTick(processJeedomSendQueue);
 	}
 };
 
 
-module.exports = ( type, url, apikey, jeedom42, logLevel ) => { 
+module.exports = ( type, url, apikey, jeedom42, logLevel, mode="size" ) => { 
 	// console.log("importing jeedom with "+url+" and "+apikey);
 	thisUrl=url;
 	thisApikey=apikey;
 	thisType=type;
 	this42=jeedom42;
 	thisLogLevel=logLevel;
+	thisMode=mode; // "size" = if >100k -> jsonrpc, else event | "jsonrpc" | "event"
 	return sendToJeedom;
 };
