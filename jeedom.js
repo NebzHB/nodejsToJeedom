@@ -14,6 +14,7 @@ var thisType="";
 var this42="";
 var sessionId="";
 var thisLogLevel="";
+var thisMode="";
 
 var processJeedomSendQueue = function()
 {
