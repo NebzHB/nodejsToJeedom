@@ -1,7 +1,7 @@
 /* jshint esversion: 8,node: true,-W041: false */
 "use strict";
 
-const request = require('request');
+const axios = require('axios');
 
 var busy = false;
 var busyRPC = false;
@@ -11,7 +11,6 @@ var jeedomSendRPCQueue = [];
 var thisUrl="";
 var thisApikey="";
 var thisType="";
-var this42="";
 var sessionId="";
 var thisLogLevel="";
 var thisMode="";
@@ -26,18 +25,28 @@ var processJeedomSendQueue = function()
 		return;
 	}
 	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
-	request.post({url:thisUrl, form:nextMessage.data}, function(err, response, body) {
-		if(err)
-		{
-			if(thisLogLevel == 'debug') { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err,response,body); }
+	axios.post(thisUrl,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}}
+	).then(response => {
+		if(response.data.error) {
+			console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
 				jeedomSendQueue.unshift(nextMessage);
 			}
+			setTimeout(processJeedomSendQueue, 1000+(1000*nextMessage.tryCount));
+			return;
 		}
-		else if(thisLogLevel == 'debug' && response.body.trim() != '') { console.log("Réponse de Jeedom : ", response.body); }
-		setTimeout(processJeedomSendQueue, 0.01*1000);
+		if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
+		process.nextTick(processJeedomSendQueue);
+	}).catch(err => {
+		if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err.code+' : '+err.response.status+' '+err.response.statusText); }
+		if (nextMessage.tryCount < 5)
+		{
+			nextMessage.tryCount++;
+			jeedomSendQueue.unshift(nextMessage);
+		}
+		setTimeout(processJeedomSendQueue, 1000+(1000*nextMessage.tryCount));
 	});
 };
 
@@ -50,52 +59,58 @@ var processJeedomSendRPCQueue = function()
 		busyRPC = false;
 		return;
 	}
-	
-	var requestContent = {
-		"request":'{"jsonrpc":"2.0","id":"'+(Math.floor(Math.random() * 1000))+'","method":"event","params":{"plugin":"'+thisType+'","apikey":"' + thisApikey + '","session":true,"sess_id":"'+ sessionId +'","data":'+JSON.stringify(nextMessage.data)+'}}',
-	};
-	
-	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
-	request.post(thisUrl,{json:true,gzip:true, form:requestContent}, function(err, response, json) {
-		if (err)
-		{
-			if(thisLogLevel == 'debug') { console.error("Erreur communication avec Jeedom JSONRPC (retry "+nextMessage.tryCount+"/5): ",err,response,json); }
+
+	axios.post(thisUrl, 
+	{
+		jsonrpc:"2.0",
+		id:(Math.floor(Math.random() * 1000)),
+		method:"event",
+		params:{
+			plugin:thisType,
+			apikey:thisApikey,
+			session:true,
+			sess_id:sessionId,
+			data:nextMessage.data,
+		},
+	}).then((result) => {
+		if(result.data.error) {
+			console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
 				jeedomSendRPCQueue.unshift(nextMessage);
 			}
-		}
-		else if (response.statusCode == 200) {
-			if (!json) {
-				console.error("JSON reçu de Jeedom invalide, vérifiez le log API de Jeedom, reçu :"+JSON.stringify(response));
-			}
-			if (!json.result && json.error) {
-				console.error(json.error);
-			} else if (json.sess_id !== undefined) {
-				sessionId = json.sess_id;
-			} else {
-				sessionId = "";
-			}
+			setTimeout(processJeedomSendRPCQueue, 1000+(1000*nextMessage.tryCount));
+			return;
+		} 
+		if (result.data.sess_id !== undefined) {
+			sessionId = result.data.sess_id;
 		} else {
-			console.error(err, response.statusCode);
+			sessionId = "";
 		}
-		setTimeout(processJeedomSendRPCQueue, 0.01*1000);
+		if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
+		process.nextTick(processJeedomSendRPCQueue);
+	}).catch(err => {
+		if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err.code+' : '+err.response.status+' '+err.response.statusText); }
+		if (nextMessage.tryCount < 5)
+		{
+			nextMessage.tryCount++;
+			jeedomSendRPCQueue.unshift(nextMessage);
+		}
+		setTimeout(processJeedomSendRPCQueue, 1000+(1000*nextMessage.tryCount));
 	});
+	
+	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
 };
 
 var sendToJeedom = function(data)
 {
 	const origDataSize=JSON.stringify(data).length;
 	// console.log("sending with "+thisUrl+" and "+thisApikey);
-	if(this42 == '0') {
-		data.type = thisType;
-		data.apikey= thisApikey;
-	} else {
-		data.type = 'event';
-		data.apikey= thisApikey;
-		data.plugin= thisType;
-	}
+	data.type = 'event';
+	data.apikey= thisApikey;
+	data.plugin= thisType;
+
 	var message = {};
 	message.data = data;
 	message.tryCount = 0;
@@ -129,7 +144,6 @@ module.exports = ( type, url, apikey, jeedom42, logLevel, mode="size" ) => {
 	thisUrl=url;
 	thisApikey=apikey;
 	thisType=type;
-	this42=jeedom42;
 	thisLogLevel=logLevel;
 	thisMode=mode; // "size" = if >100k -> jsonrpc, else event | "jsonrpc" | "event"
 	return sendToJeedom;
