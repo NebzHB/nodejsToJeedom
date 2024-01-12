@@ -24,11 +24,11 @@ var processJeedomSendQueue = function()
 		busy = false;
 		return;
 	}
-	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
-	axios.post(thisUrl,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}}
+	 console.log('Traitement du message : ' + JSON.stringify(nextMessage.data));
+	axios.post(thisUrl,JSON.stringify(nextMessage.data),{headers:{"Content-Type": "multipart/form-data"}}
 	).then(response => {
 		if(response.data.error) {
-			console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
+			console.error("Erreur communication avec Jeedom 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
@@ -37,10 +37,10 @@ var processJeedomSendQueue = function()
 			setTimeout(processJeedomSendQueue, 1000+(1000*nextMessage.tryCount));
 			return;
 		}
-		if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
+		//if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
 		process.nextTick(processJeedomSendQueue);
 	}).catch(err => {
-		if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err.code+' : '+err.response.status+' '+err.response.statusText); }
+		if(err) { console.error("Erreur communication avec Jeedom 2 (retry "+nextMessage.tryCount+"/5): ",err);}//+' : 'err.code+err.response.status+' '+err.response.statusText); }
 		if (nextMessage.tryCount < 5)
 		{
 			nextMessage.tryCount++;
@@ -72,9 +72,9 @@ var processJeedomSendRPCQueue = function()
 			sess_id:sessionId,
 			data:nextMessage.data,
 		},
-	}).then((result) => {
-		if(result.data.error) {
-			console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
+	}).then((response) => {
+		if(response.data.error) {
+			console.error("Erreur communication avec Jeedom JsonRPC 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
 			if (nextMessage.tryCount < 5)
 			{
 				nextMessage.tryCount++;
@@ -83,15 +83,15 @@ var processJeedomSendRPCQueue = function()
 			setTimeout(processJeedomSendRPCQueue, 1000+(1000*nextMessage.tryCount));
 			return;
 		} 
-		if (result.data.sess_id !== undefined) {
-			sessionId = result.data.sess_id;
+		if (response.data.sess_id !== undefined) {
+			sessionId = response.data.sess_id;
 		} else {
 			sessionId = "";
 		}
-		if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
+		//if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
 		process.nextTick(processJeedomSendRPCQueue);
 	}).catch(err => {
-		if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err.code+' : '+err.response.status+' '+err.response.statusText); }
+		if(err) { console.error("Erreur communication avec Jeedom JsonRPC 2 (retry "+nextMessage.tryCount+"/5): ",err);}//err.code+' : '+err.response.status+' '+err.response.statusText); }
 		if (nextMessage.tryCount < 5)
 		{
 			nextMessage.tryCount++;
@@ -139,12 +139,12 @@ var sendToJeedom = function(data)
 };
 
 
-module.exports = ( type, url, apikey, jeedom42, logLevel, mode="size" ) => { 
+module.exports = ( type, url, apikey, mode="size" ) => { 
 	// console.log("importing jeedom with "+url+" and "+apikey);
 	thisUrl=url;
 	thisApikey=apikey;
 	thisType=type;
-	thisLogLevel=logLevel;
+	//thisLogLevel=logLevel;
 	thisMode=mode; // "size" = if >100k -> jsonrpc, else event | "jsonrpc" | "event"
 	return sendToJeedom;
 };
