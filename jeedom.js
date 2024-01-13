@@ -24,8 +24,9 @@ var processJeedomSendQueue = function()
 		busy = false;
 		return;
 	}
-	 console.log('Traitement du message : ' + JSON.stringify(nextMessage.data));
-	axios.post(thisUrl,JSON.stringify(nextMessage.data),{headers:{"Content-Type": "multipart/form-data"}}
+	
+	//console.log('Traitement du message : ' ,nextMessage.data);
+	axios.post(thisUrl,nextMessage.data,{headers:{"Content-Type": "application/json"}}
 	).then(response => {
 		if(response.data.error) {
 			console.error("Erreur communication avec Jeedom 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
@@ -105,7 +106,6 @@ var processJeedomSendRPCQueue = function()
 
 var sendToJeedom = function(data)
 {
-	const origDataSize=JSON.stringify(data).length;
 	// console.log("sending with "+thisUrl+" and "+thisApikey);
 	data.type = 'event';
 	data.apikey= thisApikey;
@@ -115,26 +115,40 @@ var sendToJeedom = function(data)
 	message.data = data;
 	message.tryCount = 0;
 	// console.log("Ajout du message " + JSON.stringify(message) + " dans la queue des messages a transmettre a Jeedom");
-	if(thisMode == "size") {
-		if(origDataSize > (100 * 1024)) { // > 100k
-			jeedomSendRPCQueue.push(message);  
-		} else {
+	switch(thisMode) {
+		case 'size':
+			const origDataSize=JSON.stringify(data).length;
+			if(origDataSize > (100 * 1024)) { // > 100k
+				jeedomSendRPCQueue.push(message);
+				if(!busyRPC) {
+					busyRPC = true;
+					process.nextTick(processJeedomSendRPCQueue);
+				}
+			} else {
+				jeedomSendQueue.push(message);
+				if(!busy) {
+					busy = true;
+					process.nextTick(processJeedomSendQueue);
+				}
+			}
+		break;
+		case 'jsonrpc':
+			jeedomSendRPCQueue.push(message);
+			if(!busyRPC) {
+				busyRPC = true;
+				process.nextTick(processJeedomSendRPCQueue);
+			}
+		break;
+		case 'event':
 			jeedomSendQueue.push(message);
-		}
-	} else if(thisMode == "jsonrpc") {
-		jeedomSendRPCQueue.push(message);  
-	} else if(thisMode == "event") {
-		jeedomSendQueue.push(message);  
-	}
-	
-	// unQueue
-	if ((thisMode == "size" || thisMode == "jsonrpc") && !busyRPC && jeedomSendRPCQueue.length) {
-		busyRPC = true;
-		process.nextTick(processJeedomSendRPCQueue);
-	}
-	if ((thisMode == "size" || thisMode == "event") && !busy && jeedomSendQueue.length) {
-		busy = true;
-		process.nextTick(processJeedomSendQueue);
+			if(!busy) {
+				busy = true;
+				process.nextTick(processJeedomSendQueue);
+			}
+		break;
+		default:
+			console.error("Mode "+thisMode+" inconnu !");
+		break;
 	}
 };
 
