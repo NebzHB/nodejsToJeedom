@@ -38,13 +38,13 @@ const processJeedomSendQueue = async () => {
 			});
 		
 			if(response.data.error) {
-				console.error("Erreur communication avec Jeedom JsonRPC 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
+				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
 				retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 				return;
 			} 
 			setImmediate(processJeedomSendQueue);
 		} catch (err) {
-			if(err) { console.error("Erreur communication avec Jeedom JsonRPC 2 (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
+			if(err) { console.error("Erreur communication avec Jeedom en JsonRPC (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
 			retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 		}
 	} else {
@@ -52,13 +52,13 @@ const processJeedomSendQueue = async () => {
 			const response=await axiosInstance.post('',new URLSearchParams(nextMessage.data).toString(),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}});
 			
 			if(response.data.error) {
-				console.error("Erreur communication avec Jeedom 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
+				console.error("Erreur communication avec Jeedom API (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
 				retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 				return;
 			}
 			setImmediate(processJeedomSendQueue);
 		} catch (err) {
-			if(err) { console.error("Erreur communication avec Jeedom 2 (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
+			if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
 			retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 		}
 	}
