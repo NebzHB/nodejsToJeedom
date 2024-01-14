@@ -3,64 +3,68 @@
 
 const axios = require('axios');
 
-var busy = false;
-var busyRPC = false;
-var jeedomSendQueue = [];
-var jeedomSendRPCQueue = [];
+let busy = false;
+let busyRPC = false;
+const jeedomSendQueue = [];
+const jeedomSendRPCQueue = [];
 
-var thisUrl="";
-var thisApikey="";
-var thisType="";
-var sessionId="";
-var thisLogLevel="";
-var thisMode="";
+let thisUrl="";
+let thisApikey="";
+let thisType="";
+let sessionId="";
+let thisLogLevel="";
+let thisMode="";
 
-var processJeedomSendQueue = function()
-{
+const processJeedomSendQueue = () => {
 	// console.log('Nombre de messages en attente de traitement : ' + jeedomSendQueue.length);
-	var nextMessage = jeedomSendQueue.shift();
+	const nextMessage = jeedomSendQueue.shift();
 
 	if (!nextMessage) {
 		busy = false;
 		return;
 	}
 	
-	//console.log('Traitement du message : ' ,nextMessage.data);
-	axios.post(thisUrl,nextMessage.data,{headers:{"Content-Type": "application/json"}}
-	).then(response => {
+	//console.log('Traitement du message : ' + JSON.stringify(nextMessage.data));
+	axios.post(thisUrl,encodeFormData(nextMessage.data),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}})
+	.then(response => {
 		if(response.data.error) {
 			console.error("Erreur communication avec Jeedom 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
-			if (nextMessage.tryCount < 5)
-			{
-				nextMessage.tryCount++;
-				jeedomSendQueue.unshift(nextMessage);
-			}
-			setTimeout(processJeedomSendQueue, 1000+(1000*nextMessage.tryCount));
+			retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 			return;
 		}
 		//if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
-		process.nextTick(processJeedomSendQueue);
+		setImmediate(processJeedomSendQueue);
 	}).catch(err => {
-		if(err) { console.error("Erreur communication avec Jeedom 2 (retry "+nextMessage.tryCount+"/5): ",err);}//+' : 'err.code+err.response.status+' '+err.response.statusText); }
-		if (nextMessage.tryCount < 5)
-		{
-			nextMessage.tryCount++;
-			jeedomSendQueue.unshift(nextMessage);
-		}
-		setTimeout(processJeedomSendQueue, 1000+(1000*nextMessage.tryCount));
+		if(err) { console.error("Erreur communication avec Jeedom 2 (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
+		retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 	});
 };
 
-var processJeedomSendRPCQueue = function()
-{
-	// console.log('Nombre de messages en attente de traitement pour RPC : ' + jeedomSendRPCQueue.length);
-	var nextMessage = jeedomSendRPCQueue.shift();
+const retryRequest = (message, queue, callback) => {
+    if (message.tryCount < 5) {
+        message.tryCount++;
+        queue.unshift(message);
+        setTimeout(callback, 1000 + (1000 * message.tryCount));
+    } else {
+        console.error("Nombre maximal de tentatives atteint pour : ", message);
+    }
+};
+
+const encodeFormData= (data) => {
+    return Object.keys(data)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(data[key]))
+        .join('&');
+};
+
+const processJeedomSendRPCQueue = () => {
+	//console.log('Nombre de messages en attente de traitement pour RPC : ' + jeedomSendRPCQueue.length);
+	const nextMessage = jeedomSendRPCQueue.shift();
 
 	if (!nextMessage) {
 		busyRPC = false;
 		return;
 	}
-
+	//console.log('Traitement du message : ' + JSON.stringify(nextMessage.data));
 	axios.post(thisUrl, 
 	{
 		jsonrpc:"2.0",
@@ -76,74 +80,64 @@ var processJeedomSendRPCQueue = function()
 	}).then((response) => {
 		if(response.data.error) {
 			console.error("Erreur communication avec Jeedom JsonRPC 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
-			if (nextMessage.tryCount < 5)
-			{
-				nextMessage.tryCount++;
-				jeedomSendRPCQueue.unshift(nextMessage);
-			}
-			setTimeout(processJeedomSendRPCQueue, 1000+(1000*nextMessage.tryCount));
+			retryRequest(nextMessage,jeedomSendRPCQueue,processJeedomSendRPCQueue);
 			return;
 		} 
+		//console.log("Réponse de Jeedom : ", response);
 		if (response.data.sess_id !== undefined) {
 			sessionId = response.data.sess_id;
 		} else {
 			sessionId = "";
 		}
 		//if(thislogLevel == 'debug' && response.data) { console.log("Réponse de Jeedom : ", response); }
-		process.nextTick(processJeedomSendRPCQueue);
+		setImmediate(processJeedomSendRPCQueue);
 	}).catch(err => {
-		if(err) { console.error("Erreur communication avec Jeedom JsonRPC 2 (retry "+nextMessage.tryCount+"/5): ",err);}//err.code+' : '+err.response.status+' '+err.response.statusText); }
-		if (nextMessage.tryCount < 5)
-		{
-			nextMessage.tryCount++;
-			jeedomSendRPCQueue.unshift(nextMessage);
-		}
-		setTimeout(processJeedomSendRPCQueue, 1000+(1000*nextMessage.tryCount));
+		if(err) { console.error("Erreur communication avec Jeedom JsonRPC 2 (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
+		retryRequest(nextMessage,jeedomSendRPCQueue,processJeedomSendRPCQueue);
 	});
 	
 	// console.log('Traitement du message : ' + JSON.stringify(nextMessage));
 };
 
-var sendToJeedom = function(data)
-{
+
+const sendToJeedom = (data) => {
+	const origDataSize = thisMode === 'size' ? JSON.stringify(data).length : 0;
+	
 	// console.log("sending with "+thisUrl+" and "+thisApikey);
 	data.type = 'event';
 	data.apikey= thisApikey;
 	data.plugin= thisType;
 
-	var message = {};
-	message.data = data;
-	message.tryCount = 0;
+	const message = {data: data, tryCount: 0};
 	// console.log("Ajout du message " + JSON.stringify(message) + " dans la queue des messages a transmettre a Jeedom");
 	switch(thisMode) {
-		case 'size':
-			const origDataSize=JSON.stringify(data).length;
-			if(origDataSize > (100 * 1024)) { // > 100k
-				jeedomSendRPCQueue.push(message);
-				if(!busyRPC) {
-					busyRPC = true;
-					process.nextTick(processJeedomSendRPCQueue);
-				}
-			} else {
-				jeedomSendQueue.push(message);
-				if(!busy) {
-					busy = true;
-					process.nextTick(processJeedomSendQueue);
-				}
-			}
-		break;
 		case 'jsonrpc':
 			jeedomSendRPCQueue.push(message);
 			if(!busyRPC) {
 				busyRPC = true;
-				process.nextTick(processJeedomSendRPCQueue);
+				setImmediate(processJeedomSendRPCQueue);
 			}
 		break;
 		case 'event':
 			jeedomSendQueue.push(message);
 			if(!busy) {
 				busy = true;
-				process.nextTick(processJeedomSendQueue);
+				setImmediate(processJeedomSendQueue);
+			}
+		break;
+		case 'size':
+			if(origDataSize > (100 * 1024)) { // > 100k
+				jeedomSendRPCQueue.push(message);
+				if(!busyRPC) {
+					busyRPC = true;
+					setImmediate(processJeedomSendRPCQueue);
+				}
+			} else {
+				jeedomSendQueue.push(message);
+				if(!busy) {
+					busy = true;
+					setImmediate(processJeedomSendQueue);
+				}
 			}
 		break;
 		default:
@@ -153,12 +147,12 @@ var sendToJeedom = function(data)
 };
 
 
-module.exports = ( type, url, apikey, mode="size" ) => { 
-	// console.log("importing jeedom with "+url+" and "+apikey);
+module.exports = ( type, url, apikey, logLevel, mode="size" ) => { 
+	//console.log("== Importing jeedom api mode "+mode+" on "+logLevel+" for "+type+" with "+url+" and "+apikey);
 	thisUrl=url;
 	thisApikey=apikey;
 	thisType=type;
-	//thisLogLevel=logLevel;
+	thisLogLevel=logLevel;
 	thisMode=mode; // "size" = if >100k -> jsonrpc, else event | "jsonrpc" | "event"
 	return sendToJeedom;
 };
