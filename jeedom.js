@@ -141,7 +141,7 @@ const sendToJeedom = (data) => {
 };
 
 
-module.exports = ( type, url, apikey, logLevel, mode="size" ) => { 
+module.exports = ( type, url, apikey, logLevel, mode="event" ) => { 
 	//console.log("== Importing jeedom api mode "+mode+" on "+logLevel+" for "+type+" with "+url+" and "+apikey);
 	thisUrl=url;
 	thisApikey=apikey;
