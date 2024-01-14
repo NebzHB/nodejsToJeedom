@@ -25,7 +25,7 @@ const processJeedomSendQueue = () => {
 	}
 	
 	//console.log('Traitement du message : ' + JSON.stringify(nextMessage.data));
-	axios.post(thisUrl,encodeFormData(nextMessage.data),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}})
+	axios.post(thisUrl,new URLSearchParams(nextMessage.data).toString(),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}})
 	.then(response => {
 		if(response.data.error) {
 			console.error("Erreur communication avec Jeedom 1 (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
@@ -48,12 +48,6 @@ const retryRequest = (message, queue, callback) => {
     } else {
         console.error("Nombre maximal de tentatives atteint pour : ", message);
     }
-};
-
-const encodeFormData= (data) => {
-    return Object.keys(data)
-        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(data[key]))
-        .join('&');
 };
 
 const processJeedomSendRPCQueue = () => {
