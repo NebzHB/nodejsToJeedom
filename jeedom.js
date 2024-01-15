@@ -1,4 +1,4 @@
-/* jshint esversion: 8,node: true,-W041: false */
+/* jshint esversion: 11,node: true,-W041: false */
 "use strict";
 
 const axios = require('axios');
