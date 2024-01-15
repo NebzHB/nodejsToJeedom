@@ -1,23 +1,21 @@
 # Usage
 
-const jsend = require('./utils/jeedom.js')('idPlugin',conf.urlJeedom,conf.apiKey,conf.jeedom42,conf.logLevel,conf.mode);
+const jsend = require('./utils/jeedom.js')('idPlugin',conf.urlJeedom,conf.apiKey,conf.logLevel,conf.mode);
 
 conf.urlJeedom = "http://JEEDOM_IP/core/api/jeeApi.php"
 
 conf.apiKey = jeedom api key
 
-conf.jeedom42 = "0" or else
-
 conf.logLevel = "debug" or else
 
-confi.mode could be "size" (depending of message size (>100k = jsonrpc)) or "jsonrpc" or "event"
+confi.mode could be "jsonrpc" or "event"
 
 
 then 
 
 jsend({eventType: 'pairedEq', result:'ok', id: req.query.id});
 
-if message is bigger than 100k, the lib uses jsonrpc, so need a redirect to event method :
+if the lib uses jsonrpc, so need a redirect to event method :
 
 in core/api/idplugin.api.php :
 
