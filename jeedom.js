@@ -49,7 +49,7 @@ const processJeedomSendQueue = async () => {
 		}
 	} else {
 		try {
-			const response=await axiosInstance.post('',new URLSearchParams(nextMessage.data).toString(),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}});
+			const response=await axiosInstance.post('',nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
 			
 			if(response.data.error) {
 				console.error("Erreur communication avec Jeedom API (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
