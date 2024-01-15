@@ -7,6 +7,7 @@ let axiosInstance;
 let busy = false;
 const jeedomSendQueue = [];
 
+let thisURL="";
 let thisApikey="";
 let thisType="";
 let thisLogLevel="";
@@ -25,7 +26,7 @@ const processJeedomSendQueue = async () => {
 	if(thisLogLevel === 'ultradebug') { console.log('Traitement du message : ' + JSON.stringify(nextMessage.data)); }
 	if(nextMessage.isJSONRPC) {
 		try {
-			const response = await axiosInstance.post('', 
+			const response = await axiosInstance.post(thisURL, 
 			{
 				jsonrpc:"2.0",
 				id:(Math.floor(Math.random() * 1000)),
@@ -49,7 +50,7 @@ const processJeedomSendQueue = async () => {
 		}
 	} else {
 		try {
-			const response=await axiosInstance.post('',nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
+			const response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
 			
 			if(response.data.error) {
 				console.error("Erreur communication avec Jeedom API (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
@@ -93,12 +94,12 @@ const sendToJeedom = (data, isJSONRPC = (thisMode==='jsonrpc'?true:false)) => {
 
 
 module.exports = ( type, url, apikey, logLevel, mode="event" ) => { 
+	thisURL=url;
 	thisApikey=apikey;
 	thisType=type;
 	thisLogLevel=logLevel;
 	thisMode=mode; // "jsonrpc" | "event"
 	axiosInstance = axios.create({
-		baseURL: url,
 		timeout: 10000,
 		headers: {'Accept-Encoding': 'gzip, deflate'},
 	});
