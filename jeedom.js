@@ -39,7 +39,7 @@ const processJeedomSendQueue = async () => {
 			});
 		
 			if(response.data.error) {
-				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
+				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message, "Message:", JSON.stringify(nextMessage));
 				retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 				return;
 			} 
