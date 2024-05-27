@@ -26,8 +26,7 @@ const processJeedomSendQueue = async () => {
 	if(thisLogLevel === 'ultradebug') { console.log('Traitement du message : ' + JSON.stringify(nextMessage.data)); }
 	if(nextMessage.isJSONRPC) {
 		try {
-			const response = await axiosInstance.post(thisURL, 
-			{
+			const msg = {
 				jsonrpc:"2.0",
 				id:(Math.floor(Math.random() * 1000)),
 				method:"event",
@@ -36,10 +35,11 @@ const processJeedomSendQueue = async () => {
 					apikey:thisApikey,
 					data:nextMessage.data,
 				},
-			});
+			};
+			const response = await axiosInstance.post(thisURL, msg);
 		
 			if(response.data.error) {
-				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message, "Message:", JSON.stringify(nextMessage));
+				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message, "Message:", JSON.stringify(msg));
 				retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 				return;
 			} 
