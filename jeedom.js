@@ -67,7 +67,7 @@ const processJeedomSendQueue = async () => {
 
 
 const retryRequest = (message, queue, callback) => {
-    if (message.tryCount < 5) {
+    if (message.tryCount < 3) {
         message.tryCount++;
         queue.unshift(message);
         setTimeout(callback, 1000 + (1000 * message.tryCount));
