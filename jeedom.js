@@ -100,7 +100,7 @@ module.exports = ( type, url, apikey, logLevel, mode="event" ) => {
 	thisLogLevel=logLevel;
 	thisMode=mode; // "jsonrpc" | "event"
 	axiosInstance = axios.create({
-		timeout: 15000,
+		timeout: 20000,
 		headers: {'Accept-Encoding': 'gzip, deflate'},
 	});
 	return sendToJeedom;
