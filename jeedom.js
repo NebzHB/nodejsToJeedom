@@ -6,6 +6,8 @@ let axiosInstance;
 
 let busy = false;
 const jeedomSendQueue = [];
+const maxRetry = 3;
+const maxResponseTime = 20 * 1000;
 
 let thisURL="";
 let thisApikey="";
@@ -39,13 +41,13 @@ const processJeedomSendQueue = async () => {
 			const response = await axiosInstance.post(thisURL, msg);
 		
 			if(response.data.error) {
-				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message, "Message:", JSON.stringify(msg));
+				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/"+maxRetry+"): ",response.data.error.code+' : '+response.data.error.message, "Message:", JSON.stringify(msg));
 				retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 				return;
 			} 
 			setImmediate(processJeedomSendQueue);
 		} catch (err) {
-			if(err) { console.error("Erreur communication avec Jeedom en JsonRPC (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
+			if(err) { console.error("Erreur communication avec Jeedom en JsonRPC (retry "+nextMessage.tryCount+"/"+maxRetry+"): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
 			retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 		}
 	} else {
@@ -53,13 +55,13 @@ const processJeedomSendQueue = async () => {
 			const response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
 			
 			if(response.data.error) {
-				console.error("Erreur communication avec Jeedom API (retry "+nextMessage.tryCount+"/5): ",response.data.error.code+' : '+response.data.error.message);
+				console.error("Erreur communication avec Jeedom API (retry "+nextMessage.tryCount+"/"+maxRetry+"): ",response.data.error.code+' : '+response.data.error.message);
 				retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 				return;
 			}
 			setImmediate(processJeedomSendQueue);
 		} catch (err) {
-			if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/5): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
+			if(err) { console.error("Erreur communication avec Jeedom (retry "+nextMessage.tryCount+"/"+maxRetry+"): ",err,err?.code,err?.response?.status,err?.response?.statusText);}
 			retryRequest(nextMessage,jeedomSendQueue,processJeedomSendQueue);
 		}
 	}
@@ -67,7 +69,7 @@ const processJeedomSendQueue = async () => {
 
 
 const retryRequest = (message, queue, callback) => {
-    if (message.tryCount < 3) {
+    if (message.tryCount < maxRetry) {
         message.tryCount++;
         queue.unshift(message);
         setTimeout(callback, 1000 + (1000 * message.tryCount));
@@ -100,7 +102,7 @@ module.exports = ( type, url, apikey, logLevel, mode="event" ) => {
 	thisLogLevel=logLevel;
 	thisMode=mode; // "jsonrpc" | "event"
 	axiosInstance = axios.create({
-		timeout: 20000,
+		timeout: maxResponseTime,
 		headers: {'Accept-Encoding': 'gzip, deflate'},
 	});
 	return sendToJeedom;
