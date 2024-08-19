@@ -38,7 +38,9 @@ const processJeedomSendQueue = async () => {
 					data:nextMessage.data,
 				},
 			};
-			const response = await axiosInstance.post(thisURL, msg);
+			if(thisURL != "testURL") {
+				const response = await axiosInstance.post(thisURL, msg);
+			}
 		
 			if(response.data.error) {
 				console.error("Erreur communication avec Jeedom API en JsonRPC (retry "+nextMessage.tryCount+"/"+maxRetry+"): ",response.data.error.code+' : '+response.data.error.message, "Message:", JSON.stringify(msg));
@@ -52,7 +54,9 @@ const processJeedomSendQueue = async () => {
 		}
 	} else {
 		try {
-			const response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
+			if(thisURL != "testURL") {
+				const response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
+			}
 			
 			if(response.data.error) {
 				console.error("Erreur communication avec Jeedom API (retry "+nextMessage.tryCount+"/"+maxRetry+"): ",response.data.error.code+' : '+response.data.error.message);
