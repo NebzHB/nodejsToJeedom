@@ -40,6 +40,8 @@ const processJeedomSendQueue = async () => {
 			};
 			if(thisURL != "testURL") {
 				const response = await axiosInstance.post(thisURL, msg);
+			} else {
+				const response = null;
 			}
 		
 			if(response && response.data.error) {
@@ -56,6 +58,8 @@ const processJeedomSendQueue = async () => {
 		try {
 			if(thisURL != "testURL") {
 				const response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
+			} else {
+				const response = null;
 			}
 			
 			if(response && response.data.error) {
