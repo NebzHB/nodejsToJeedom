@@ -38,10 +38,10 @@ const processJeedomSendQueue = async () => {
 					data:nextMessage.data,
 				},
 			};
+
+			let response = null;
 			if(thisURL != "testURL") {
-				const response = await axiosInstance.post(thisURL, msg);
-			} else {
-				const response = null;
+				response = await axiosInstance.post(thisURL, msg);
 			}
 		
 			if(response && response.data.error) {
@@ -56,10 +56,9 @@ const processJeedomSendQueue = async () => {
 		}
 	} else {
 		try {
+			let response = null;
 			if(thisURL != "testURL") {
-				const response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
-			} else {
-				const response = null;
+				response=await axiosInstance.post(thisURL,nextMessage.data,{headers:{"Content-Type": "multipart/form-data"}});
 			}
 			
 			if(response && response.data.error) {
