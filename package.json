@@ -7,7 +7,7 @@
     "node": ">=16"
   },
   "scripts": {
-    "lint:js": "eslint resources/*.js",
+    "lint:js": "eslint jeedom.js",
     "lint": "npm run lint:js"
   },
   "dependencies": {
