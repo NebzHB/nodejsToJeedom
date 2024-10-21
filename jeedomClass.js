@@ -67,7 +67,7 @@ class JeedomAPI {
                 setImmediate(() => this.processJeedomSendQueue());
             }
         } catch (err) {
-            console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", err);
+            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", err); }
             this.retryRequest(nextMessage);
         }
     }
