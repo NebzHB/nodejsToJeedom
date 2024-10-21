@@ -61,13 +61,13 @@ class JeedomAPI {
             }
 
             if (response?.data?.error) {
-                console.error("Erreur communication avec Jeedom API (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", response.data.error.code + ' : ' + response.data.error.message, "Message:", JSON.stringify(nextMessage.data));
+                console.error("Erreur communication avec Jeedom API " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", response.data.error.code + ' : ' + response.data.error.message, "Message:", JSON.stringify(nextMessage.data));
                 this.retryRequest(nextMessage);
             } else {
                 setImmediate(() => this.processJeedomSendQueue());
             }
         } catch (err) {
-            console.error("Erreur communication avec Jeedom (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", err);
+            console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", err);
             this.retryRequest(nextMessage);
         }
     }
