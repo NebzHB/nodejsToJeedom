@@ -101,5 +101,6 @@ class JeedomAPI {
 }
 
 module.exports = (type, url, apikey, logLevel, mode = "event") => {
-    return new JeedomAPI(type, url, apikey, logLevel, mode);
+    const apiInstance = new JeedomAPI(type, url, apikey, logLevel, mode);
+    return apiInstance.sendToJeedom.bind(apiInstance);
 };
