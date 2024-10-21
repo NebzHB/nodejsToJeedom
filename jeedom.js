@@ -52,7 +52,7 @@ class JeedomAPI {
                 if (this.url !== "testURL") {
                     response = await this.axiosInstance.post(this.url, msg);
                 }
-            }  else if (this.url !== "testURL") {
+            } else if (this.url !== "testURL") {
                 response = await this.axiosInstance.post(this.url, nextMessage.data, {
                     headers: {"Content-Type": "multipart/form-data"},
                 });
