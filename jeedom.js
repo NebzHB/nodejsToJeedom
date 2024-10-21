@@ -17,7 +17,7 @@ class JeedomAPI {
 
         this.axiosInstance = axios.create({
             timeout: this.maxResponseTime,
-            headers: { 'Accept-Encoding': 'gzip, deflate' },
+            headers: {'Accept-Encoding': 'gzip, deflate'},
         });
     }
 
@@ -55,7 +55,7 @@ class JeedomAPI {
             } else {
                 if (this.url !== "testURL") {
                     response = await this.axiosInstance.post(this.url, nextMessage.data, {
-                        headers: { "Content-Type": "multipart/form-data" },
+                        headers: {"Content-Type": "multipart/form-data"},
                     });
                 }
             }
