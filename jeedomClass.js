@@ -98,9 +98,13 @@ class JeedomAPI {
             setImmediate(() => this.processJeedomSendQueue());
         }
     }
+
+    getSendToJeedom() {
+        return this.sendToJeedom.bind(this);
+    }
 }
 
 module.exports = (type, url, apikey, logLevel, mode = "event") => {
     const apiInstance = new JeedomAPI(type, url, apikey, logLevel, mode);
-    return apiInstance.sendToJeedom.bind(apiInstance);
+    return apiInstance.getSendToJeedom();
 };
