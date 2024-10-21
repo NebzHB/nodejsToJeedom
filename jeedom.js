@@ -86,7 +86,7 @@ class JeedomAPI {
         data.type = 'event';
         data.apikey = this.apikey;
         data.plugin = this.type;
-        const message = { data: data, tryCount: 0, isJSONRPC: isJSONRPC };
+        const message = {data: data, tryCount: 0, isJSONRPC: isJSONRPC};
 
         if (this.logLevel === 'ultradebug') {
             console.log("Ajout du message " + JSON.stringify(message) + " dans la queue des messages à transmettre à Jeedom");
