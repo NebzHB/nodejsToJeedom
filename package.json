@@ -11,7 +11,8 @@
     "lint": "npm run lint:js"
   },
   "dependencies": {
-    "axios": ">=1.8.4"
+    "axios": ">=1.8.4",
+    "async": "3.2.6"
   },
   "devDependencies": {
     "eslint": "^8.56.0"
