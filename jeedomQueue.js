@@ -66,14 +66,14 @@ class JeedomAPI {
     }
 
     retryRequest(message, callback) {
-		if (message.tryCount < this.maxRetry) {
-			message.tryCount++;
-			setTimeout(() => this.queue.push(message, callback), 1000 + (1000 * message.tryCount));
-		} else {
-			console.error("Nombre maximal de tentatives atteint pour :", message);
-			if (typeof callback === "function") callback();
-		}
-	}
+        if (message.tryCount < this.maxRetry) {
+            message.tryCount++;
+            setTimeout(() => this.queue.push(message, callback), 1000 + (1000 * message.tryCount));
+        } else {
+            console.error("Nombre maximal de tentatives atteint pour :", message);
+            if (typeof callback === "function") callback();
+        }
+    }
 
 
     sendToJeedom(data, isJSONRPC = (this.mode === 'jsonrpc')) {
