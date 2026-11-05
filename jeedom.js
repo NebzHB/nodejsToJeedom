@@ -12,8 +12,14 @@ class JeedomAPI {
         this.mode = mode; // "jsonrpc" | "event"
         this.busy = false;
         this.jeedomSendQueue = [];
-        this.maxRetry = 3;
+        this.maxRetryDelay = 5 * 1000; // entre deux essais (2s, 3s, 4s puis 5s) tant que le message n'a pas dépassé maxMessageAge
         this.maxResponseTime = 20 * 1000;
+        // Jeedom lent ou indisponible (sauvegarde, redémarrage...) : la file ne grossit pas sans fin et on n'envoie pas
+        // des états périmés en retard
+        this.maxQueueSize = 500; // au-delà, les plus anciens sont jetés
+        this.maxMessageAge = 2 * 60 * 1000; // un message plus vieux est jeté au lieu d'être envoyé
+        this.dropped = {};
+        this.lastDropLog = 0;
 
         this.axiosInstance = axios.create({
             timeout: this.maxResponseTime,
@@ -26,8 +32,13 @@ class JeedomAPI {
             console.log('Nombre de messages en attente de traitement : ' + this.jeedomSendQueue.length);
         }
 
-        const nextMessage = this.jeedomSendQueue.shift();
+        let nextMessage = this.jeedomSendQueue.shift();
+        while (nextMessage && Date.now() - nextMessage.createdAt > this.maxMessageAge) {
+            this.drop('trop ancien');
+            nextMessage = this.jeedomSendQueue.shift();
+        }
         if (!nextMessage) {
+            this.logDropped(); // le reste du décompte, une fois la file vidée
             this.busy = false;
             return;
         }
@@ -68,7 +79,7 @@ class JeedomAPI {
             }
         } catch (err) {
             // message seulement : l'erreur axios contient la requête, donc la clé API
-            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", (err.message || String(err)) + (err.code ? ' [' + err.code + ']' : '')); }
+            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (essai " + (nextMessage.tryCount + 1) + "): ", (err.message || String(err)) + (err.code ? ' [' + err.code + ']' : '')); }
             // renvoi seulement si Jeedom n'a pas répondu (réseau, délai dépassé) ou a répondu une erreur serveur (5xx)
             if (!err?.response || err.response.status >= 500) {
                 this.retryRequest(nextMessage);
@@ -78,15 +89,13 @@ class JeedomAPI {
         }
     }
 
+    // Jeedom n'a pas répondu ou erreur serveur : on réessaie le même message (l'ordre est gardé) jusqu'à ce qu'il soit trop
+    // ancien (maxMessageAge), il est alors jeté au traitement suivant. Pas de message sauté au milieu : seuls les plus anciens
+    // sont perdus pendant une coupure, puis tout ce qui est récent part dans l'ordre au retour de Jeedom.
     retryRequest(message) {
-        if (message.tryCount < this.maxRetry) {
-            message.tryCount++;
-            this.jeedomSendQueue.unshift(message);
-            setTimeout(() => this.processJeedomSendQueue(), 1000 + (1000 * message.tryCount));
-        } else {
-            console.error("Nombre maximal de tentatives atteint pour : ", this.forLog(message.data));
-            setImmediate(() => this.processJeedomSendQueue()); // message abandonné : on passe aux suivants (sinon la file reste bloquée)
-        }
+        message.tryCount++;
+        this.jeedomSendQueue.unshift(message);
+        setTimeout(() => this.processJeedomSendQueue(), Math.min(1000 + (1000 * message.tryCount), this.maxRetryDelay));
     }
 
     sendToJeedom(data, isJSONRPC = (this.mode === 'jsonrpc')) {
@@ -97,17 +106,34 @@ class JeedomAPI {
         copy.plugin = this.type;
         // en JSON-RPC la clé est déjà dans params.apikey : pas dans les données remises à event() du plugin (qui peut les loguer)
         if (!isJSONRPC) { copy.apikey = this.apikey; }
-        const message = {data: copy, tryCount: 0, isJSONRPC: isJSONRPC};
+        const message = {data: copy, tryCount: 0, isJSONRPC: isJSONRPC, createdAt: Date.now()};
 
         if (this.logLevel === 'ultradebug') {
             console.log("Ajout du message " + this.forLog(message.data) + " dans la queue des messages à transmettre à Jeedom");
         }
 
+        if (this.jeedomSendQueue.length >= this.maxQueueSize) {
+            this.jeedomSendQueue.shift();
+            this.drop('file pleine');
+        }
         this.jeedomSendQueue.push(message);
         if (!this.busy) {
             this.busy = true;
             setImmediate(() => this.processJeedomSendQueue());
         }
+    }
+
+    // message non envoyé : compté, et loggé au plus toutes les 10s (pas une ligne par message quand Jeedom ne répond plus)
+    drop(reason) {
+        this.dropped[reason] = (this.dropped[reason] || 0) + 1;
+        if (Date.now() - this.lastDropLog >= 10 * 1000) { this.logDropped(); }
+    }
+
+    logDropped() {
+        if (!Object.keys(this.dropped).length) { return; }
+        console.error("Jeedom ne traite pas les messages assez vite, messages non envoyés : " + Object.entries(this.dropped).map(([r, n]) => n + " (" + r + ")").join(', '));
+        this.dropped = {};
+        this.lastDropLog = Date.now();
     }
 
     // message pour les logs, sans la clé API
