@@ -90,10 +90,14 @@ class JeedomAPI {
     }
 
     sendToJeedom(data, isJSONRPC = (this.mode === 'jsonrpc')) {
-        data.type = 'event';
-        data.apikey = this.apikey;
-        data.plugin = this.type;
-        const message = {data: data, tryCount: 0, isJSONRPC: isJSONRPC};
+        // copie : l'envoi se fait plus tard (file), le plugin peut modifier son objet juste après l'appel, et on n'y écrit plus rien
+        let copy;
+        try { copy = structuredClone(data); } catch (_) { copy = {...data}; } // (fonction dans les données...)
+        copy.type = 'event';
+        copy.plugin = this.type;
+        // en JSON-RPC la clé est déjà dans params.apikey : pas dans les données remises à event() du plugin (qui peut les loguer)
+        if (!isJSONRPC) { copy.apikey = this.apikey; }
+        const message = {data: copy, tryCount: 0, isJSONRPC: isJSONRPC};
 
         if (this.logLevel === 'ultradebug') {
             console.log("Ajout du message " + this.forLog(message.data) + " dans la queue des messages à transmettre à Jeedom");
