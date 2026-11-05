@@ -78,6 +78,7 @@ class JeedomAPI {
             setTimeout(() => this.processJeedomSendQueue(), 1000 + (1000 * message.tryCount));
         } else {
             console.error("Nombre maximal de tentatives atteint pour : ", this.forLog(message.data));
+            setImmediate(() => this.processJeedomSendQueue()); // message abandonné : on passe aux suivants (sinon la file reste bloquée)
         }
     }
 
