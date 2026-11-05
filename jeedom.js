@@ -59,15 +59,22 @@ class JeedomAPI {
             }
 
             if (response?.data?.error) {
-                console.error("Erreur communication avec Jeedom API " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", response.data.error.code + ' : ' + response.data.error.message, "Message:", this.forLog(nextMessage.data));
-                this.retryRequest(nextMessage);
+                // Jeedom a reçu et traité le message mais le plugin a levé une erreur : le renvoyer échouerait pareil
+                // (et rejouerait ce qui a été fait avant l'erreur, ex : une automatisation)
+                console.error("Erreur de Jeedom API " + (nextMessage.isJSONRPC?"en JsonRPC":'') + ", message non renvoyé : ", response.data.error.code + ' : ' + response.data.error.message, "Message:", this.forLog(nextMessage.data));
+                setImmediate(() => this.processJeedomSendQueue());
             } else {
                 setImmediate(() => this.processJeedomSendQueue());
             }
         } catch (err) {
             // message seulement : l'erreur axios contient la requête, donc la clé API
             if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", (err.message || String(err)) + (err.code ? ' [' + err.code + ']' : '')); }
-            this.retryRequest(nextMessage);
+            // renvoi seulement si Jeedom n'a pas répondu (réseau, délai dépassé) ou a répondu une erreur serveur (5xx)
+            if (!err?.response || err.response.status >= 500) {
+                this.retryRequest(nextMessage);
+            } else {
+                setImmediate(() => this.processJeedomSendQueue());
+            }
         }
     }
 
