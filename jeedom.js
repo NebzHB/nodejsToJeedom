@@ -12,7 +12,7 @@ class JeedomAPI {
         this.mode = mode; // "jsonrpc" | "event"
         this.busy = false;
         this.jeedomSendQueue = [];
-        this.maxRetry = 3;
+        this.maxRetryDelay = 5 * 1000; // entre deux essais (2s, 3s, 4s puis 5s) tant que le message n'a pas dépassé maxMessageAge
         this.maxResponseTime = 20 * 1000;
         // Jeedom lent ou indisponible (sauvegarde, redémarrage...) : la file ne grossit pas sans fin et on n'envoie pas
         // des états périmés en retard
@@ -79,7 +79,7 @@ class JeedomAPI {
             }
         } catch (err) {
             // message seulement : l'erreur axios contient la requête, donc la clé API
-            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", (err.message || String(err)) + (err.code ? ' [' + err.code + ']' : '')); }
+            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (essai " + (nextMessage.tryCount + 1) + "): ", (err.message || String(err)) + (err.code ? ' [' + err.code + ']' : '')); }
             // renvoi seulement si Jeedom n'a pas répondu (réseau, délai dépassé) ou a répondu une erreur serveur (5xx)
             if (!err?.response || err.response.status >= 500) {
                 this.retryRequest(nextMessage);
@@ -89,15 +89,13 @@ class JeedomAPI {
         }
     }
 
+    // Jeedom n'a pas répondu ou erreur serveur : on réessaie le même message (l'ordre est gardé) jusqu'à ce qu'il soit trop
+    // ancien (maxMessageAge), il est alors jeté au traitement suivant. Pas de message sauté au milieu : seuls les plus anciens
+    // sont perdus pendant une coupure, puis tout ce qui est récent part dans l'ordre au retour de Jeedom.
     retryRequest(message) {
-        if (message.tryCount < this.maxRetry) {
-            message.tryCount++;
-            this.jeedomSendQueue.unshift(message);
-            setTimeout(() => this.processJeedomSendQueue(), 1000 + (1000 * message.tryCount));
-        } else {
-            console.error("Nombre maximal de tentatives atteint pour : ", this.forLog(message.data));
-            setImmediate(() => this.processJeedomSendQueue()); // message abandonné : on passe aux suivants (sinon la file reste bloquée)
-        }
+        message.tryCount++;
+        this.jeedomSendQueue.unshift(message);
+        setTimeout(() => this.processJeedomSendQueue(), Math.min(1000 + (1000 * message.tryCount), this.maxRetryDelay));
     }
 
     sendToJeedom(data, isJSONRPC = (this.mode === 'jsonrpc')) {
