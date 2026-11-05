@@ -33,7 +33,7 @@ class JeedomAPI {
         }
 
         if (this.logLevel === 'ultradebug') {
-            console.log('Traitement du message : ' + JSON.stringify(nextMessage.data));
+            console.log('Traitement du message : ' + this.forLog(nextMessage.data));
         }
 
         try {
@@ -59,13 +59,14 @@ class JeedomAPI {
             }
 
             if (response?.data?.error) {
-                console.error("Erreur communication avec Jeedom API " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", response.data.error.code + ' : ' + response.data.error.message, "Message:", JSON.stringify(nextMessage.data));
+                console.error("Erreur communication avec Jeedom API " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", response.data.error.code + ' : ' + response.data.error.message, "Message:", this.forLog(nextMessage.data));
                 this.retryRequest(nextMessage);
             } else {
                 setImmediate(() => this.processJeedomSendQueue());
             }
         } catch (err) {
-            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", err); }
+            // message seulement : l'erreur axios contient la requête, donc la clé API
+            if(err) { console.error("Erreur communication avec Jeedom " + (nextMessage.isJSONRPC?"en JsonRPC":'') + " (retry " + nextMessage.tryCount + "/" + this.maxRetry + "): ", (err.message || String(err)) + (err.code ? ' [' + err.code + ']' : '')); }
             this.retryRequest(nextMessage);
         }
     }
@@ -76,7 +77,7 @@ class JeedomAPI {
             this.jeedomSendQueue.unshift(message);
             setTimeout(() => this.processJeedomSendQueue(), 1000 + (1000 * message.tryCount));
         } else {
-            console.error("Nombre maximal de tentatives atteint pour : ", message);
+            console.error("Nombre maximal de tentatives atteint pour : ", this.forLog(message.data));
         }
     }
 
@@ -87,7 +88,7 @@ class JeedomAPI {
         const message = {data: data, tryCount: 0, isJSONRPC: isJSONRPC};
 
         if (this.logLevel === 'ultradebug') {
-            console.log("Ajout du message " + JSON.stringify(message) + " dans la queue des messages à transmettre à Jeedom");
+            console.log("Ajout du message " + this.forLog(message.data) + " dans la queue des messages à transmettre à Jeedom");
         }
 
         this.jeedomSendQueue.push(message);
@@ -95,6 +96,11 @@ class JeedomAPI {
             this.busy = true;
             setImmediate(() => this.processJeedomSendQueue());
         }
+    }
+
+    // message pour les logs, sans la clé API
+    forLog(data) {
+        return JSON.stringify(data, (key, value) => ((key === 'apikey') ? '***' : value));
     }
 
     getSendToJeedom() {
